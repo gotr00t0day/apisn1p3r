@@ -1,7 +1,2 @@
-# FortiCheck
-requests>=2.25.0
-colorama>=0.4.4
-
-# APISN1P3R
 urllib3>=1.26.0
 PyYAML>=5.4.0
