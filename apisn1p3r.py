@@ -2108,13 +2108,13 @@ Modules:
   all       Run everything (default)
 
 Examples:
-  python3 api_recon.py -u https://api.target.com
-  python3 api_recon.py -u https://api.target.com -m waf,tls,headers
-  python3 api_recon.py -u https://api.target.com -m auth,jwt,graphql,swagger
-  python3 api_recon.py -f targets.txt -m paths,cors
-  python3 api_recon.py -u https://api.target.com -w wordlist.txt
-  python3 api_recon.py -u https://api.target.com --timeout 15 -o results.json
-  cat urls.txt | python3 api_recon.py --stdin -m waf
+  python3 apisn1p3r.py -u https://api.target.com
+  python3 apisn1p3r.py -u https://api.target.com -m waf,tls,headers
+  python3 apisn1p3r.py -u https://api.target.com -m auth,jwt,graphql,swagger
+  python3 apisn1p3r.py -f targets.txt -m paths,cors
+  python3 apisn1p3r.py -u https://api.target.com -w wordlist.txt
+  python3 apisn1p3r.py -u https://api.target.com --timeout 15 -o results.json
+  cat urls.txt | python3 apisn1p3r.py --stdin -m waf
         """,
     )
     parser.add_argument("-u", "--url", help="Target URL")
