@@ -257,7 +257,6 @@ def load_wordlist(path):
         sys.exit(1)
 
 
-# ── PATH DISCOVERY ──
 
 def path_discovery(base, session, timeout, wordlist, processes=1, user_agent="Mozilla/5.0"):
     print(f"\n  PATH DISCOVERY")
