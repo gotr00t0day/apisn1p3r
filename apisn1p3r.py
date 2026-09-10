@@ -314,8 +314,6 @@ def path_discovery(base, session, timeout, wordlist, processes=1, user_agent="Mo
                 )
                 has_weak_page_signal = any(m in body for m in weak_page_markers)
 
-                # Mark as interesting only if it is not a default/common path
-                # OR if the response content strongly suggests API/app behavior.
                 if (not is_common and not has_weak_page_signal) or has_strong_api_signal:
                     tag = " ← INTERESTING"
             elif code in (301, 302, 307, 308):
@@ -382,7 +380,6 @@ def path_discovery(base, session, timeout, wordlist, processes=1, user_agent="Mo
     return hits, baseline_code
 
 
-# ── CORS CHECK ──
 
 def cors_check(base, session, timeout):
     print(f"\n  CORS TEST")
@@ -431,7 +428,6 @@ def cors_check(base, session, timeout):
     return findings
 
 
-# ── HTTP METHOD TEST ──
 
 def method_test(base, session, timeout, hits):
     print(f"\n  HTTP METHOD TEST")
@@ -453,7 +449,6 @@ def method_test(base, session, timeout, hits):
         print(f"    {' | '.join(results)}")
 
 
-# ── RESPONSE DUMP ──
 
 def dump_responses(hits, limit=10):
     if not hits:
@@ -468,7 +463,6 @@ def dump_responses(hits, limit=10):
                 print(f"    {line}")
 
 
-# ── WAF DETECTION ──
 
 def waf_detect(base, session, timeout, baseline_code):
     print(f"\n  WAF / FIREWALL DETECTION")
@@ -538,7 +532,6 @@ def waf_detect(base, session, timeout, baseline_code):
     return waf_detections
 
 
-# ── RATE LIMIT TEST ──
 
 def rate_limit_test(base, session, count=20):
     print(f"\n  Rate Limit Test ({count} rapid requests)...")
@@ -564,7 +557,6 @@ def rate_limit_test(base, session, count=20):
     return False
 
 
-# ── TLS / CERT ANALYSIS ──
 
 def tls_check(hostname, port, timeout):
     print(f"\n  TLS / CERTIFICATE ANALYSIS")
@@ -646,7 +638,6 @@ def tls_check(hostname, port, timeout):
         print(f"  Error: {e}")
 
 
-# ── TECHNOLOGY DETECTION ──
 
 TECH_FINGERPRINTS = {
     "Web Servers": {
@@ -822,7 +813,6 @@ def tech_detect(base, session, timeout):
     except Exception:
         pass
 
-    # Header-only quick probe
     try:
         r = session.head(base + "/", timeout=timeout)
         score_response(r)
@@ -853,7 +843,6 @@ def tech_detect(base, session, timeout):
     return detections
 
 
-# ── SECURITY HEADERS AUDIT ──
 
 SECURITY_HEADERS = {
     "Strict-Transport-Security": {
@@ -955,7 +944,6 @@ def headers_audit(base, session, timeout):
             except Exception:
                 findings["good"].append(header)
 
-    # Info leak headers
     leaked = []
     for h in HEADERS_LEAK:
         val = headers_lower.get(h)
@@ -976,7 +964,6 @@ def headers_audit(base, session, timeout):
     return findings
 
 
-# ── AUTH BYPASS PROBES ──
 
 AUTH_BYPASS_HEADERS = [
     {"X-Original-URL": "/admin"},
@@ -1025,7 +1012,6 @@ def auth_bypass(base, session, timeout):
 
     findings = []
 
-    # Phase 1: Baseline — find paths that return 401/403
     protected = []
     print(f"  Scanning for protected endpoints...")
     for path, desc in AUTH_BYPASS_PATHS:
@@ -1044,7 +1030,6 @@ def auth_bypass(base, session, timeout):
     if not protected:
         print(f"  No protected endpoints found to test bypass on")
 
-        # Still test header injection on root
         print(f"\n  Testing header injection on /...")
         try:
             baseline = session.get(base + "/", timeout=timeout)
@@ -1065,7 +1050,6 @@ def auth_bypass(base, session, timeout):
         for path, desc, orig_code in protected:
             print(f"  Testing: {path} (baseline: {orig_code})")
 
-            # Header bypass
             for headers in AUTH_BYPASS_HEADERS:
                 try:
                     r = session.get(base + path, headers=headers, timeout=timeout, allow_redirects=False)
@@ -1080,7 +1064,6 @@ def auth_bypass(base, session, timeout):
                 except Exception:
                     pass
 
-            # Method override
             for method in ["POST", "PUT", "PATCH", "DELETE", "OPTIONS"]:
                 try:
                     r = session.request(method, base + path, timeout=timeout, allow_redirects=False)
@@ -1090,7 +1073,6 @@ def auth_bypass(base, session, timeout):
                 except Exception:
                     pass
 
-            # Path tricks
             path_variants = [
                 path + "/",
                 path + "/.",
@@ -1113,7 +1095,6 @@ def auth_bypass(base, session, timeout):
                 except Exception:
                     pass
 
-    # Phase 2: JWT alg:none
     print(f"\n  JWT alg:none test...")
     for path, desc in [("/api/v1/users", ""), ("/api/admin", ""), ("/admin", ""), ("/", "")]:
         try:
@@ -1128,7 +1109,6 @@ def auth_bypass(base, session, timeout):
         except Exception:
             pass
 
-    # Phase 3: Empty/garbage auth
     print(f"  Empty auth test...")
     auth_tests = [
         ("No header", {}),
@@ -1158,7 +1138,6 @@ def auth_bypass(base, session, timeout):
     return findings
 
 
-# ── JWT EXPLOITATION ──
 
 JWT_EXPLOIT_PATHS = [
     "/", "/api", "/api/v1", "/api/v2", "/api/v1/users", "/api/v1/user",
@@ -1219,7 +1198,6 @@ def jwt_exploit(base, session, timeout):
     def response_fingerprint(resp):
         return (resp.status_code, len(resp.content), hashlib.md5(resp.content).hexdigest())
 
-    # ── Phase 1: strict auth-state delta detection ──
     print(f"  Phase 1: Finding protected endpoints with auth-state delta...")
 
     candidate_endpoints = []
@@ -1248,7 +1226,6 @@ def jwt_exploit(base, session, timeout):
         invalid_protected = is_auth_error(r_invalid)
         none_looks_auth = (not is_auth_error(r_none)) and r_none.status_code == 200
 
-        # Only accept endpoints where forged none clearly improves auth state
         if (no_auth_protected or invalid_protected) and none_looks_auth:
             candidate_endpoints.append({
                 "path": path,
@@ -1270,7 +1247,6 @@ def jwt_exploit(base, session, timeout):
         print("  Skipping exploit phases to avoid false positives.")
         return findings
 
-    # ── Phase 2: Algorithm confusion attacks ──
     print(f"\n  Phase 2: Algorithm confusion attacks (protected endpoints only)...")
 
     alg_attacks = [
@@ -1318,7 +1294,6 @@ def jwt_exploit(base, session, timeout):
             except Exception:
                 pass
 
-    # ── Phase 3: Claim manipulation ──
     print(f"\n  Phase 3: Claim manipulation (privilege escalation)...")
 
     claim_sets = [
@@ -1359,7 +1334,6 @@ def jwt_exploit(base, session, timeout):
             except Exception:
                 pass
 
-    # ── Phase 4: User ID enumeration ──
     print(f"\n  Phase 4: User ID enumeration...")
 
     for ep in candidate_endpoints[:5]:
@@ -1396,7 +1370,6 @@ def jwt_exploit(base, session, timeout):
         else:
             print(f"    · All responses identical on {path}")
 
-    # ── Phase 5: Token in response ──
     print(f"\n  Phase 5: Checking for tokens in responses...")
 
     token_keywords = ["access_token", "accesstoken", "token", "jwt", "bearer",
@@ -1426,7 +1399,6 @@ def jwt_exploit(base, session, timeout):
         except Exception:
             pass
 
-    # ── Summary ──
     print(f"\n  JWT Exploitation Summary")
     print(f"  {'─' * 55}")
 
@@ -1459,7 +1431,6 @@ def jwt_exploit(base, session, timeout):
     return findings
 
 
-# ── GRAPHQL INTROSPECTION ──
 
 GRAPHQL_PATHS = [
     "/graphql", "/graphql/", "/graphiql", "/graphql/console",
@@ -1549,7 +1520,6 @@ def swagger_check(base, session, timeout):
             ctype = (r.headers.get("Content-Type") or "").lower()
             body = r.text
 
-            # Try JSON
             spec = None
             if "json" in ctype or body.strip().startswith("{"):
                 try:
@@ -1557,7 +1527,6 @@ def swagger_check(base, session, timeout):
                 except (json.JSONDecodeError, ValueError):
                     continue
 
-            # Try YAML (optional)
             if spec is None and ("yaml" in ctype or body.strip().startswith("---") or (":" in body and not body.strip().startswith("{"))):
                 try:
                     import yaml
@@ -1569,8 +1538,7 @@ def swagger_check(base, session, timeout):
 
             if not spec or not isinstance(spec, dict):
                 continue
-
-            # Swagger 2.0 or OpenAPI 3.x
+                
             swagger_version = spec.get("swagger") or spec.get("openapi")
             if not swagger_version:
                 continue
@@ -1579,12 +1547,10 @@ def swagger_check(base, session, timeout):
             findings["specs"].append({"url": url, "path": path, "version": swagger_version})
             print(f"  ✓ Spec found: {path} ({swagger_version})")
 
-            # Extract base path (Swagger 2.0)
             base_path = spec.get("basePath", "") or ""
             if base_path and not base_path.startswith("/"):
                 base_path = "/" + base_path
 
-            # Extract paths
             paths_obj = spec.get("paths", {})
             if not paths_obj:
                 continue
@@ -1606,7 +1572,6 @@ def swagger_check(base, session, timeout):
                     findings["endpoints"].append(ep)
                     findings["paths"].append(f"{method} {full_path}")
 
-            # Dedupe paths for display
             seen_eps = set()
             unique_eps = []
             for ep in findings["endpoints"]:
@@ -1701,7 +1666,6 @@ def soap_check(base, session, timeout):
             findings["endpoints"].append({"url": url, "path": path})
             print(f"  ✓ SOAP/WSDL found: {path}")
 
-            # Extract service/port names (basic)
             services = re.findall(r'name=["\']([^"\']+)["\']', r.text)
             operations = re.findall(r'<operation\s+name=["\']([^"\']+)["\']', r.text, re.I)
             bindings = re.findall(r'<binding\s+name=["\']([^"\']+)["\']', r.text, re.I)
@@ -1758,7 +1722,6 @@ def jsonrpc_check(base, session, timeout):
     for path in JSONRPC_PATHS:
         url = base.rstrip("/") + path
         try:
-            # Try JSON-RPC
             r = session.post(url, data=jsonrpc_body, headers={"Content-Type": "application/json"}, timeout=timeout)
             if r.status_code == 200:
                 try:
@@ -1773,7 +1736,6 @@ def jsonrpc_check(base, session, timeout):
                 except (json.JSONDecodeError, ValueError):
                     pass
 
-            # Try XML-RPC
             r = session.post(url, data=xmlrpc_body, headers={"Content-Type": "text/xml"}, timeout=timeout)
             if r.status_code == 200 and ("methodResponse" in r.text or "params" in r.text):
                 findings["endpoints"].append({"path": path, "type": "xmlrpc"})
@@ -1851,7 +1813,6 @@ def graphql_check(
 
     findings = {"endpoints": [], "introspection": None, "types": [], "mutations": [], "queries": []}
 
-    # Phase 1: Find GraphQL endpoints
     gql_endpoints = []
     effective_probe_timeout = min(timeout, max(1, int(probe_timeout)))
     seen = set()
@@ -1924,7 +1885,6 @@ def graphql_check(
 
     findings["endpoints"] = gql_endpoints
 
-    # Phase 2: Introspection query
     for endpoint in gql_endpoints[:max_endpoints if max_endpoints else len(gql_endpoints)]:
         print(f"\n  Introspecting {endpoint}...")
 
@@ -1977,7 +1937,6 @@ def graphql_check(
             print(f"  {'─' * 55}")
             print(f"    Types:      {len(user_types)} ({len(object_types)} objects, {len(input_types)} inputs, {len(enum_types)} enums)")
 
-            # Queries
             query_obj = next((t for t in types if t["name"] == query_type), None)
             if query_obj and query_obj.get("fields"):
                 queries = query_obj["fields"]
@@ -1991,7 +1950,6 @@ def graphql_check(
                 if len(queries) > 15:
                     print(f"      ... and {len(queries) - 15} more")
 
-            # Mutations
             if mutation_type:
                 mut_obj = next((t for t in types if t["name"] == mutation_type), None)
                 if mut_obj and mut_obj.get("fields"):
@@ -2006,7 +1964,6 @@ def graphql_check(
                     if len(mutations) > 15:
                         print(f"      ... and {len(mutations) - 15} more")
 
-            # Interesting types (password, token, secret, email, admin)
             sensitive_keywords = ["password", "secret", "token", "admin", "role",
                                   "permission", "ssn", "credit", "private", "internal"]
             interesting = []
@@ -2029,7 +1986,6 @@ def graphql_check(
     return findings
 
 
-# ── WAF RESULTS SUMMARY ──
 
 def waf_summary(waf_detections):
     print(f"\n  WAF DETECTION RESULTS")
@@ -2049,7 +2005,6 @@ def waf_summary(waf_detections):
         print(f"  No WAF/firewall signatures detected")
 
 
-# ── JSON EXPORT ──
 
 def export_json(output_path, base, hits, waf_detections, tech_detections=None,
                 header_findings=None, auth_findings=None, gql_findings=None,
@@ -2080,7 +2035,6 @@ def export_json(output_path, base, hits, waf_detections, tech_detections=None,
     print(f"\n  JSON saved to {output_path}")
 
 
-# ── MAIN ──
 
 def main():
     parser = argparse.ArgumentParser(
@@ -2137,7 +2091,6 @@ Examples:
     parser.add_argument("-o", "--output", help="Save results as JSON")
     parser.add_argument("-v", "--verbose", action="store_true", help="Verbose output")
 
-    # argparse exits immediately for -h/--help, so print banner first in that case.
     if "-h" in sys.argv or "--help" in sys.argv:
         banner()
     args = parser.parse_args()
@@ -2386,7 +2339,6 @@ Examples:
                 printed_any = True
                 print(f"\n[{base}] tech findings: {len(tech_results)} fingerprints")
 
-            # Quiet mode: print only targets with findings.
 
         if args.output:
             export_json(args.output, base, hits, waf_results, tech_results,
